@@ -15,14 +15,14 @@ namespace JPEG.Net
             bool littleEndian;
             Int16 tiffId;
             Int32 firstIFDOffset;
-            uint length;
+            int length;
 
-            public Exif (FileStream fileStream, uint len)
+            public Exif (byte[] buf)
             {
-                Length = len;
+                Length = buf.Length;
 
                 byte[] header = new byte[8];
-                fileStream.Read(header, 0, 8);
+                Array.Copy(buf, 0, header, 0, 8);
 
                 char c1 = Convert.ToChar(header[0]);
                 char c2 = Convert.ToChar(header[1]);
@@ -70,10 +70,12 @@ namespace JPEG.Net
 
             }
 
+            
+
             public bool LittleEndian { get => littleEndian; set => littleEndian = value; }
             public short TiffId { get => tiffId; set => tiffId = value; }
             public int FirstIFDOffset { get => firstIFDOffset; set => firstIFDOffset = value; }
-            public uint Length { get => length; set => length = value; }
+            public int Length { get => length; set => length = value; }
 
             public AppType GetAppType()
             {
@@ -82,28 +84,45 @@ namespace JPEG.Net
         }
         public class XMP : IApp
         {
+            private int length;
+
+            public XMP(byte[] buf)
+            {
+                length = buf.Length;
+            }
+
+
             public AppType GetAppType()
             {
                 return AppType.XMP;
             }
         }
 
-        public static IApp Parse(FileStream fileStream)
+        public static IApp Parse(byte[] segmentBuffer)
         {
-            byte[] buf2 = new byte[2];
-            fileStream.Read(buf2, 0, 2);
-            uint exifLen = BitConverter.ToUInt16(buf2, 0);
-
+            int segmentLength = segmentBuffer.Length;
             byte[] exif = new byte[6];
-            fileStream.Read(exif, 0, 6);
+            Array.Copy(segmentBuffer, 0, exif, 0, 6);
             string s = ASCIIEncoding.ASCII.GetString(exif);
             if (s != "Exif\0\0")
             {
-                return new XMP();       
+                byte[] xmp = new byte[29];
+                Array.Copy(segmentBuffer, 0, xmp, 0, 29);
+                s = ASCIIEncoding.ASCII.GetString(xmp);
+
+                if (s == "http://ns.adobe.com/xap/1.0/\0")
+                {
+                    byte[] bufx = new byte[segmentLength - 29];
+                    Array.Copy(segmentBuffer, 29, bufx, 0, segmentLength - 29);
+                    return new XMP(bufx);
+                }
+                else throw new Exception($"Parsing error - unknown APP1 format {s}");
+                
             }
 
-
-            return new Exif(fileStream, exifLen);
+            byte[] buf = new byte[segmentLength - 6];
+            Array.Copy(segmentBuffer, 6, buf, 0, segmentLength - 6);
+            return new Exif(buf);
 
            
         }

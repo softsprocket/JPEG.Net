@@ -11,7 +11,9 @@ namespace JPEG.Net
     {
         EXIF,
         XMP,
-        APPn
+        APPn,
+        JFIF,
+        JFXX
     }
 
     public interface IApp

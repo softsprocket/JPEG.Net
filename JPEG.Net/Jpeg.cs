@@ -76,7 +76,7 @@ namespace JPEG.Net
             // For example, an Exif JPEG file uses an APP1 marker to store metadata, laid out in a structure based closely on TIFF.
             public static bool APPn(byte[] b)
             {
-                return b[0] == 0xFF && (b[1] >= 0xE0 && b[1] <= 0xE9);
+                return b[0] == 0xFF && (b[1] >= 0xE0 && b[1] <= 0xEF);
             }
 
 
@@ -84,6 +84,12 @@ namespace JPEG.Net
             public static bool APP1(byte[] b)
             {
                 return APPn(b) && GetN(b[1]) == 1;
+            }
+
+            //FIF
+            public static bool APP0(byte[] b)
+            {
+                return APPn(b) && GetN(b[1]) == 0;
             }
 
             // Comment
