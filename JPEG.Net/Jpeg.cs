@@ -16,20 +16,10 @@ namespace JPEG.Net
                 return b[0] == 0xFF && b[1] == 0xD8;
             }
 
-            // Start Of Frame(Baseline DCT)
-            // Indicates that this is a baseline DCT-based JPEG, and specifies the width, height, 
-            // number of components, and component subsampling
-            public static bool SSOF0(byte[] b)
+            // Start of frame
+            public static bool SOFn(byte[] b)
             {
-                return b[0] == 0xFF && b[1] == 0xC0;
-            }
-
-            // Start Of Frame(Progressive DCT)
-            // Indicates that this is a progressive DCT-based JPEG, and specifies the width, height, 
-            // number of components, and component subsampling
-            public static bool SOF2(byte[] b)
-            {
-                return b[0] == 0xFF && b[1] == 0xC2;
+                return b[0] == 0xFF && b[1] != 0xCC && (b[1] >= 0xC0 && b[1] <= 0xCF);
             }
 
             // Define Huffman Table(s)

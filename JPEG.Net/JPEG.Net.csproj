@@ -42,11 +42,13 @@
   <ItemGroup>
     <Compile Include="App0.cs" />
     <Compile Include="App1.cs" />
-    <Compile Include="AppInterface.cs" />
+    <Compile Include="MarkerInterface.cs" />
     <Compile Include="Appn.cs" />
-    <Compile Include="IFD.cs" />
+    <Compile Include="Dqt.cs" />
+    <Compile Include="Ifd.cs" />
     <Compile Include="Jpeg.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Sof.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

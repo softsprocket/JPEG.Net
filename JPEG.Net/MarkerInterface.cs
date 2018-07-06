@@ -7,17 +7,19 @@ using System.Threading.Tasks;
 namespace JPEG.Net
 {
 
-    public enum AppType
+    public enum MarkerType
     {
         EXIF,
         XMP,
         APPn,
         JFIF,
-        JFXX
+        JFXX,
+        DQT,
+        SOF
     }
 
-    public interface IApp
+    public interface IMarker
     {
-        AppType GetAppType();
+        MarkerType GetMarkerType();
     }
 }

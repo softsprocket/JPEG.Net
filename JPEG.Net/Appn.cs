@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace JPEG.Net
 {
-    public class Appn : IApp
+    public class Appn : IMarker
     {
         int n;
         byte[] buffer;
@@ -20,9 +20,9 @@ namespace JPEG.Net
         public int N { get => n; set => n = value; }
         public byte[] Buffer { get => buffer; set => buffer = value; }
 
-        public AppType GetAppType()
+        public MarkerType GetMarkerType()
         {
-            return AppType.APPn;
+            return MarkerType.APPn;
         }
     }
 }

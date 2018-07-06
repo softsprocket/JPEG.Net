@@ -10,12 +10,14 @@ namespace JPEG.Net
     public static class App1
     {
 
-        public class Exif : IApp
+        public class Exif : IMarker
         {
             bool littleEndian;
-            Int16 tiffId;
-            Int32 firstIFDOffset;
+            ushort tiffId;
+            uint firstIFDOffset;
             int length;
+
+            Ifd ifd0;
 
             public Exif (byte[] buf)
             {
@@ -46,7 +48,7 @@ namespace JPEG.Net
                     Array.Reverse(magicNumber);
                 }
 
-                TiffId = BitConverter.ToInt16(magicNumber, 0);
+                TiffId = BitConverter.ToUInt16(magicNumber, 0);
 
                 if (TiffId != 42)
                 {
@@ -66,23 +68,25 @@ namespace JPEG.Net
                     Array.Reverse(offset);
                 }
 
-                FirstIFDOffset = BitConverter.ToInt32(offset, 0);
+                FirstIFDOffset = BitConverter.ToUInt32(offset, 0);
 
+                ifd0 = new Ifd(buf, FirstIFDOffset, LittleEndian);
             }
 
             
 
             public bool LittleEndian { get => littleEndian; set => littleEndian = value; }
-            public short TiffId { get => tiffId; set => tiffId = value; }
-            public int FirstIFDOffset { get => firstIFDOffset; set => firstIFDOffset = value; }
+            public ushort TiffId { get => tiffId; set => tiffId = value; }
+            public uint FirstIFDOffset { get => firstIFDOffset; set => firstIFDOffset = value; }
             public int Length { get => length; set => length = value; }
+            public Ifd Ifd0 { get => ifd0; set => ifd0 = value; }
 
-            public AppType GetAppType()
+            public MarkerType GetMarkerType()
             {
-                return AppType.EXIF;
+                return MarkerType.EXIF;
             }
         }
-        public class XMP : IApp
+        public class XMP : IMarker
         {
             private int length;
 
@@ -92,13 +96,13 @@ namespace JPEG.Net
             }
 
 
-            public AppType GetAppType()
+            public MarkerType GetMarkerType()
             {
-                return AppType.XMP;
+                return MarkerType.XMP;
             }
         }
 
-        public static IApp Parse(byte[] segmentBuffer)
+        public static IMarker Parse(byte[] segmentBuffer)
         {
             int segmentLength = segmentBuffer.Length;
             byte[] exif = new byte[6];

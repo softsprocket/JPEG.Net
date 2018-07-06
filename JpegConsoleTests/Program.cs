@@ -52,12 +52,19 @@ namespace JpegConsoleTests
                     {
                         if (Jpeg.Definitions.APP1(buf2))
                         {
-                            IApp app = App1.Parse(buf);
+                            IMarker app = App1.Parse(buf);
 
-                            if (app.GetAppType() == AppType.EXIF)
+                            if (app.GetMarkerType() == MarkerType.EXIF)
                             {
                                 App1.Exif exif = (App1.Exif)app;
                                 Console.WriteLine($"Exif {exif.TiffId} {exif.FirstIFDOffset} {exif.Length}");
+                                Ifd ifd0 = exif.Ifd0;
+                                Console.WriteLine($"IFD1 tag count {ifd0.FieldInteroperabiltyCount}");
+                                Console.WriteLine($"Next IFD {ifd0.OffsetToNextIfd}");
+                                for (int i = 0; i < ifd0.FieldInteroperabilties.Length; ++i)
+                                {
+                                    Console.WriteLine(ifd0.FieldInteroperabilties[i].TypeValue);
+                                }
                             }
                             else
                             {
@@ -67,13 +74,55 @@ namespace JpegConsoleTests
                         }
                         else if (Jpeg.Definitions.APP0(buf2))
                         {
-                            Console.WriteLine("APP0");
-                            IApp app0 = App0.Parse(buf);
+                            IMarker app0 = App0.Parse(buf);
+                            if (app0.GetMarkerType() == MarkerType.JFIF)
+                            {
+                                App0.Jfif jfif = (App0.Jfif)app0;
+                                Console.WriteLine($"Jfif {jfif.GetVersion()}");
+                                switch (jfif.DensityUnit)
+                                {
+                                    case App0.Jfif.XYDensityUnit.AspectRatio:
+                                        Console.WriteLine("XYDensityUnit AspectRatio");
+                                        break;
+                                    case App0.Jfif.XYDensityUnit.DotsPerInch:
+                                        Console.WriteLine("XYDensityUnit DotsPerInch");
+                                        break;
+                                    case App0.Jfif.XYDensityUnit.DotsPerCm:
+                                        Console.WriteLine("XYDensityUnit DOtsPerCm");
+                                        break;
+                                }
+
+                                Console.WriteLine($"XDensity {jfif.XDensity}, YDensity {jfif.YDensity}");
+                                Console.WriteLine($"Thumbnail X {jfif.XThumbnailCount}, Thumbnail Y {jfif.YThumbnailCount}");
+                            }
+                            else if (app0.GetMarkerType() == MarkerType.JFXX)
+                            {
+                                App0.Jfxx jfxx = (App0.Jfxx)app0;
+                                Console.WriteLine("Jfxx");
+                            }
+                            else
+                            {
+                                Console.WriteLine("APP0");
+                            }
+
                         } 
                         else if (Jpeg.Definitions.APPn(buf2))
                         {
                             Appn appn = new Appn(buf, buf2[1] & 0x0F);
                             Console.WriteLine($"Appn {appn.N}");
+                        }
+                        else if (Jpeg.Definitions.DQT(buf2))
+                        {
+                            Console.WriteLine($"DQT");
+                        }
+                        else if (Jpeg.Definitions.SOFn(buf2))
+                        {
+                            SOFn sofn = new SOFn(buf, buf2[1] & 0x0F);
+                            Console.WriteLine($"SOFn {sofn.N}");
+                        }
+                        else if (Jpeg.Definitions.DRI(buf2))
+                        {
+                            Console.WriteLine("DRI");
                         }
                     } 
                     catch (Exception e)
