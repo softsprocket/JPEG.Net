@@ -15,97 +15,134 @@ namespace JPEG.Net
             ushort type;
             uint count;
             uint offset;
+            bool exifIfd;
+            bool interoperabilityIfd;
+            Ifd exif;
+            Ifd interoperability;
 
             public ushort Tag { get => tag; set => tag = value; }
             public ushort Type { get => type; set => type = value; }
             public uint Count { get => count; set => count = value; }
             public uint ValueOffset { get => offset; set => offset = value; }
+            public bool ExifIfd { get => exifIfd; set => exifIfd = value; }
+            public Ifd Exif { get => exif; set => exif = value; }
+            public Ifd Interoperability { get => interoperability; set => interoperability = value; }
+            public bool InteroperabilityIfd { get => interoperabilityIfd; set => interoperabilityIfd = value; }
+
             public FieldType TypeValue; 
+
 
             public FieldInteroperability (byte[] buf, uint np, bool reverseNumericArrays)
             {
-                byte[] b2 = new byte[2];
-                if (reverseNumericArrays)
-                {
-                    b2[0] = buf[np + 1];
-                    b2[1] = buf[np];
-                }
-                else
-                {
-                    b2[0] = buf[np];
-                    b2[1] = buf[np + 1];
-                }
 
-                ushort tag = BitConverter.ToUInt16(b2, 0);
-
-                if (reverseNumericArrays)
-                {
-                    b2[0] = buf[np + 3];
-                    b2[1] = buf[np + 2];
-                }
-                else
-                {
-                    b2[0] = buf[np + 2];
-                    b2[1] = buf[np + 3];
-                }
-
-                ushort type = BitConverter.ToUInt16(b2, 0);
-
-                byte[] b4 = new byte[4];
-                if (reverseNumericArrays)
-                {
-                    b4[0] = buf[np + 7];
-                    b4[1] = buf[np + 6];
-                    b4[2] = buf[np + 5];
-                    b4[3] = buf[np + 4];
-                }
-                else
-                {
-                    b4[0] = buf[np + 4];
-                    b4[1] = buf[np + 5];
-                    b4[2] = buf[np + 6];
-                    b4[3] = buf[np + 7];
-                }
-
-                uint count = BitConverter.ToUInt32(b4, 0);
-
-                if (reverseNumericArrays)
-                {
-                    b4[0] = buf[np + 11];
-                    b4[1] = buf[np + 10];
-                    b4[2] = buf[np + 9];
-                    b4[3] = buf[np + 8];
-                }
-                else
-                {
-                    b4[0] = buf[np + 8];
-                    b4[1] = buf[np + 9];
-                    b4[2] = buf[np + 10];
-                    b4[3] = buf[np + 11];
-                }
-
-                uint offs = BitConverter.ToUInt32(b4, 0);
-
+                ushort tag = GetValueFromBuf<UInt16>(buf, (int)np, 2, reverseNumericArrays, BitConverter.ToUInt16);
+                ushort type = GetValueFromBuf<UInt16>(buf, (int)np + 2, 2, reverseNumericArrays, BitConverter.ToUInt16);
+                uint count = GetValueFromBuf<UInt32>(buf, (int)np + 4, 4, reverseNumericArrays, BitConverter.ToUInt32);
 
                 Tag = tag;
                 Type = type;
                 Count = count;
-                ValueOffset = offset;
                 TypeValue = GetFieldType();
-
                 int size = TypeValue.Size();
-                
-                if (size <= 4)
+
+                if (size > 4)
                 {
-                    TypeValue.SetValue(b4, offset, reverseNumericArrays);
+                    uint offs = GetValueFromBuf<UInt32>(buf, (int)np + 8, 4, reverseNumericArrays, BitConverter.ToUInt32);
+                    ValueOffset = offs;
+                    TypeValue.SetValue(buf, offs, reverseNumericArrays);
                 }
                 else
                 {
-                    TypeValue.SetValue(buf, offset, reverseNumericArrays);
+                    ValueOffset = 0;
+                    byte[] b4 = new byte[4];
+                    Array.Copy(buf, np + 8, b4, 0, 4);
+                    TypeValue.SetValue(b4, 0, reverseNumericArrays);
+
+                    if (tag == TiffTags.Exif)
+                    {
+                        uint[] a = (uint[])TypeValue.GetValue();
+                        bool isLittleEndian = BitConverter.IsLittleEndian && !reverseNumericArrays;
+                        Exif = new Ifd(buf, a[0], isLittleEndian);
+                        ExifIfd = true;
+                    }
+
+                    if (tag == TiffTags.Interoperability)
+                    {
+                        uint[] a = (uint[])TypeValue.GetValue();
+                        bool isLittleEndian = BitConverter.IsLittleEndian && !reverseNumericArrays;
+                        Interoperability = new Ifd(buf, a[0], isLittleEndian);
+                        InteroperabilityIfd = true;
+                    }
                 }
 
+               
             }
 
+            public delegate T ConverterDelegate<T>(byte[] b, int off);
+
+            public static T GetValueFromBuf<T>(byte[] buf, int offset, int len, bool reverse, ConverterDelegate<T> converter)
+            {
+                byte[] b = new byte[len];
+                Array.Copy(buf, offset, b, 0, len);
+                if (reverse)
+                {
+                    Array.Reverse(b);
+                }
+
+                return converter(b, 0);
+            }
+
+            public override string ToString ()
+            {
+                string s = $"{TiffTags.ToString(Tag)}: ";
+
+                if (Tag == TiffTags.ResolutionUnit)
+                {
+                    s += TiffTags.ResolutionUnitToString(TypeValue);
+                }
+                else if (Tag == TiffTags.SensitivityType)
+                {
+                    s += TiffTags.SensitivityTypeToString(TypeValue);
+                }
+                else if (Tag == TiffTags.Orientation)
+                {
+                    s += TiffTags.OrientationToString(TypeValue);
+                }
+                else if (Tag == TiffTags.YCbCrPositioning)
+                {
+                    s += TiffTags.YCbCrPositioningToString(TypeValue);
+                }
+                else if (Tag == TiffTags.ExposureProgram)
+                {
+                    s += TiffTags.ExposureProgramToString(TypeValue);
+                }
+                else if (Tag == TiffTags.Flash)
+                {
+                    s += TiffTags.FlashToString(TypeValue);
+                }
+                else if (Tag == TiffTags.MeteringMode)
+                {
+                    s += TiffTags.MeteringModeToString(TypeValue);
+                }
+                else if (Tag == TiffTags.LightSource)
+                {
+                    s += TiffTags.LightSourceToString(TypeValue);
+                }
+                else if (Tag == TiffTags.ColorSpace)
+                {
+                    s += TiffTags.ColorSpaceToString(TypeValue);
+                }
+                else if (Tag == TiffTags.SensingMethodExifPrivate || Tag == TiffTags.SensingMethod)
+                {
+                    s += TiffTags.SensingMethodToString(TypeValue);
+                }
+                else
+                {
+                    s += TypeValue;
+                }
+
+                return s;
+            }
 
             public abstract class FieldType
             {
@@ -129,6 +166,10 @@ namespace JPEG.Net
 
                 public abstract void SetValue(byte[] buf, uint offset, bool reverse);
 
+                public abstract object GetValue();
+
+                public abstract string TypeToString();
+
             }
 
             public class ByteValue : FieldType
@@ -145,7 +186,12 @@ namespace JPEG.Net
 
                 public override string ToString()
                 {
-                    return $"Byte length {value.Length}: {BitConverter.ToString(value)}";
+                    return BitConverter.ToString(value);
+                }
+
+                public override string TypeToString()
+                {
+                    return "Byte";
                 }
 
                 public override int Size ()
@@ -156,16 +202,12 @@ namespace JPEG.Net
                 public override void SetValue(byte[] buf, uint offset, bool reverse)
                 {
                     int numbytes = Size();
-                    if (numbytes <= 4)
-                    {
-                        Array.Copy(buf, 0, Value, 0, numbytes);
-                    }
-                    else
-                    {
-                        Array.Copy(buf, offset, Value, 0, numbytes);
-                    }
-
+                    Array.Copy(buf, offset, Value, 0, numbytes);
                 }
+
+                public override object GetValue () {
+                    return value;
+                } 
             }
 
             public class AsciiValue : FieldType
@@ -182,8 +224,12 @@ namespace JPEG.Net
 
                 public override string ToString()
                 {
-                    Console.WriteLine(BitConverter.ToString(Value));
-                    return $"Ascii length {value.Length}: {UTF8Encoding.UTF8.GetString(value)}";
+                    return UTF8Encoding.UTF8.GetString(value);
+                }
+
+                public override string TypeToString()
+                {
+                    return "Ascii";
                 }
 
                 public override int Size ()
@@ -194,15 +240,12 @@ namespace JPEG.Net
                 public override void SetValue(byte[] buf, uint offset, bool reverse)
                 {
                     int numbytes = Size();
-                    if (numbytes <= 4)
-                    {
-                        Array.Copy(buf, 0, Value, 0, numbytes);
-                    }
-                    else
-                    {
-                        Array.Copy(buf, offset, Value, 0, numbytes);
-                    }
+                    Array.Copy(buf, offset, Value, 0, numbytes);
+                }
 
+                public override object GetValue()
+                {
+                    return value;
                 }
             }
 
@@ -220,8 +263,8 @@ namespace JPEG.Net
 
                 public override string ToString()
                 {
-                    string s = $"Short length {value.Length}:";
-                    string sep = " ";
+                    string s = "";
+                    string sep = "";
                     for (int i = 0; i < value.Length; ++i)
                     {
                         s += $"{sep}{value[i]}";
@@ -229,6 +272,11 @@ namespace JPEG.Net
                     }
 
                     return s;
+                }
+
+                public override string TypeToString()
+                {
+                    return "Short";
                 }
 
                 public override int Size ()
@@ -241,18 +289,38 @@ namespace JPEG.Net
                     int numbytes = Size();
                     if (numbytes <= 4)
                     {
+
                         for (int i = 0; i < Value.Length; ++i)
                         {
-                            Value[i] = BitConverter.ToUInt16(buf, i * 2);
+                            if (reverse)
+                            {
+                                Value[i] = GetValueFromBuf<UInt16>(buf, i * 2, 2, reverse, BitConverter.ToUInt16);
+                            }
+                            else
+                            {
+                                Value[i] = BitConverter.ToUInt16(buf, i * 2);
+                            }
                         }
                     }
                     else
                     {
                         for (int i = 0; i < Value.Length; ++i)
                         {
-                            value[i] = BitConverter.ToUInt16(buf, (int)offset + (2 * i));
+                            if (reverse)
+                            {
+                                Value[i] = GetValueFromBuf<UInt16>(buf, i * 2, 2, reverse, BitConverter.ToUInt16);
+                            }
+                            else
+                            {
+                                value[i] = BitConverter.ToUInt16(buf, (int)offset + (2 * i));
+                            }
                         }
                     }
+                }
+
+                public override object GetValue()
+                {
+                    return value;
                 }
             }
 
@@ -270,8 +338,8 @@ namespace JPEG.Net
 
                 public override string ToString()
                 {
-                    string s = $"Long length {value.Length}:";
-                    string sep = " ";
+                    string s = "";
+                    string sep = "";
                     for (int i = 0; i < value.Length; ++i)
                     {
                         s += $"{sep}{value[i]}";
@@ -279,6 +347,11 @@ namespace JPEG.Net
                     }
 
                     return s;
+                }
+
+                public override string TypeToString()
+                {
+                    return "Long";
                 }
 
                 public override int Size()
@@ -292,15 +365,32 @@ namespace JPEG.Net
                     int numbytes = Size();
                     if (numbytes == 4)
                     {
+                        if (reverse)
+                        {
+                            Array.Reverse(buf);
+                        }
+
                         Value[0] = BitConverter.ToUInt32(buf, 0);
                     }
                     else
                     {
                         for (int i = 0; i < Value.Length; ++i)
                         {
-                            value[i] = BitConverter.ToUInt32(buf, (int)offset + (4 * i));
+                            if (reverse)
+                            {
+                                Value[i] = GetValueFromBuf<UInt32>(buf, i * 4, 4, reverse, BitConverter.ToUInt32);
+                            }
+                            else
+                            {
+                                value[i] = BitConverter.ToUInt32(buf, (int)offset + (4 * i));
+                            }
                         }
                     }
+                }
+
+                public override object GetValue()
+                {
+                    return value;
                 }
             }
 
@@ -318,8 +408,8 @@ namespace JPEG.Net
 
                 public override string ToString()
                 {
-                    string s = $"Rational length {value.Length}:";
-                    string sep = " ";
+                    string s = "";
+                    string sep = "";
                     for (int i = 0; i < value.Length; ++i)
                     {
                         s += $"{sep}{value[i].Item1}/{value[i].Item2}";
@@ -327,6 +417,11 @@ namespace JPEG.Net
                     }
 
                     return s;
+                }
+
+                public override string TypeToString()
+                {
+                    return "Rational";
                 }
 
                 public override int Size()
@@ -338,11 +433,29 @@ namespace JPEG.Net
                 {
                     for (int i = 0; i < Value.Length; ++i)
                     {
-                        Value[i] = new Tuple<uint, uint>(
-                            BitConverter.ToUInt32(buf, (int)offset + (4 * i)),
-                            BitConverter.ToUInt32(buf, (int)offset + ((4 * i) + 4))
-                        );
+                        if (reverse)
+                        {
+
+                            Value[i] = new Tuple<uint, uint>(
+                                GetValueFromBuf<UInt32>(buf, (int)offset + (4 * i), 4, reverse, BitConverter.ToUInt32),
+                                GetValueFromBuf<UInt32>(buf, (int)offset + ((4 * i) + 4), 4, reverse, BitConverter.ToUInt32)
+                            );
+                          
+                        }
+                        else
+                        {
+
+                            Value[i] = new Tuple<uint, uint>(
+                                BitConverter.ToUInt32(buf, (int)offset + (4 * i)),
+                                BitConverter.ToUInt32(buf, (int)offset + ((4 * i) + 4))
+                            );
+                        }
                     }
+                }
+
+                public override object GetValue()
+                {
+                    return value;
                 }
             }
 
@@ -361,8 +474,13 @@ namespace JPEG.Net
 
                 public override string ToString()
                 {
-                    return $"Undefined length {value.Length}: {BitConverter.ToString(value)}";
+                    return BitConverter.ToString(value);
                     
+                }
+
+                public override string TypeToString()
+                {
+                    return "Undefined";
                 }
 
                 public override int Size()
@@ -373,15 +491,14 @@ namespace JPEG.Net
                 public override void SetValue(byte[] buf, uint offset, bool reverse)
                 {
                     int numbytes = Size();
-                    if (numbytes <= 4)
-                    {
-                        Array.Copy(buf, 0, Value, 0, numbytes);
-                    }
-                    else
-                    {
-                        Array.Copy(buf, offset, Value, 0, numbytes);
-                    }
+                   
+                    Array.Copy(buf, offset, Value, 0, numbytes);
 
+                }
+
+                public override object GetValue()
+                {
+                    return value;
                 }
             }
 
@@ -399,8 +516,8 @@ namespace JPEG.Net
 
                 public override string ToString()
                 {
-                    string s = $"SLong length {value.Length}:";
-                    string sep = " ";
+                    string s = "";
+                    string sep = "";
                     for (int i = 0; i < value.Length; ++i)
                     {
                         s += $"{sep}{value[i]}";
@@ -408,6 +525,11 @@ namespace JPEG.Net
                     }
 
                     return s;
+                }
+
+                public override string TypeToString()
+                {
+                    return "SLong";
                 }
 
                 public override int Size()
@@ -420,15 +542,32 @@ namespace JPEG.Net
                     int numbytes = Size();
                     if (numbytes == 4)
                     {
+                        if (reverse)
+                        {
+                            Array.Reverse(buf);
+                        }
+
                         Value[0] = BitConverter.ToInt32(buf, 0);
                     }
                     else
                     {
                         for (int i = 0; i < Value.Length; ++i)
                         {
-                            value[i] = BitConverter.ToInt32(buf, (int)offset + (4 * i));
+                            if (reverse)
+                            {
+                                Value[i] = GetValueFromBuf<Int32>(buf, i * 4, 4, reverse, BitConverter.ToInt32);
+                            }
+                            else
+                            {
+                                value[i] = BitConverter.ToInt32(buf, (int)offset + (4 * i));
+                            }
                         }
                     }
+                }
+
+                public override object GetValue()
+                {
+                    return value;
                 }
             }
 
@@ -446,8 +585,8 @@ namespace JPEG.Net
 
                 public override string ToString()
                 {
-                    string s = $"SRational length {value.Length}:";
-                    string sep = " ";
+                    string s = "";
+                    string sep = "";
                     for (int i = 0; i < value.Length; ++i)
                     {
                         s += $"{sep}{value[i].Item1}/{value[i].Item2}";
@@ -455,6 +594,11 @@ namespace JPEG.Net
                     }
 
                     return s;
+                }
+
+                public override string TypeToString()
+                {
+                    return "SRational";
                 }
 
                 public override int Size()
@@ -467,11 +611,27 @@ namespace JPEG.Net
                 {
                     for (int i = 0; i < Value.Length; ++i)
                     {
-                        Value[i] = new Tuple<int, int>(
-                            BitConverter.ToInt32(buf, (int)offset + (4 * i)),
-                            BitConverter.ToInt32(buf, (int)offset + ((4 * i) + 4))
-                        );
+                        if (reverse)
+                        {
+                            Value[i] = new Tuple<int, int>(
+                               GetValueFromBuf<Int32>(buf, (int)offset + (4 * i), 4, reverse, BitConverter.ToInt32),
+                               GetValueFromBuf<Int32>(buf, (int)offset + ((4 * i) + 4), 4, reverse, BitConverter.ToInt32)
+                           );
+
+                        }
+                        else
+                        {
+                            Value[i] = new Tuple<int, int>(
+                                BitConverter.ToInt32(buf, (int)offset + (4 * i)),
+                                BitConverter.ToInt32(buf, (int)offset + ((4 * i) + 4))
+                            );
+                        }
                     }
+                }
+
+                public override object GetValue()
+                {
+                    return value;
                 }
             }
 
@@ -570,6 +730,6 @@ namespace JPEG.Net
             OffsetToNextIfd = BitConverter.ToUInt32(nextIfd, 0);
         }
 
-
+       
     }
 }

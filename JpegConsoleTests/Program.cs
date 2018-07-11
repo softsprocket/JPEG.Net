@@ -13,7 +13,7 @@ namespace JpegConsoleTests
     {
         static void Main(string[] args)
         {
-            string path = @"C:\Users\Greg\Pictures\file000325161223.jpg";
+            string path = @"E:\Development\vs2017\RotationGdiTest\Debug\D500\DSC_0001.JPG";
 
             if (args.Length > 0)
             {
@@ -50,29 +50,8 @@ namespace JpegConsoleTests
                     fileStream.Read(buf, 0, len);
                     try
                     {
-                        if (Jpeg.Definitions.APP1(buf2))
-                        {
-                            IMarker app = App1.Parse(buf);
-
-                            if (app.GetMarkerType() == MarkerType.EXIF)
-                            {
-                                App1.Exif exif = (App1.Exif)app;
-                                Console.WriteLine($"Exif {exif.TiffId} {exif.FirstIFDOffset} {exif.Length}");
-                                Ifd ifd0 = exif.Ifd0;
-                                Console.WriteLine($"IFD1 tag count {ifd0.FieldInteroperabiltyCount}");
-                                Console.WriteLine($"Next IFD {ifd0.OffsetToNextIfd}");
-                                for (int i = 0; i < ifd0.FieldInteroperabilties.Length; ++i)
-                                {
-                                    Console.WriteLine(ifd0.FieldInteroperabilties[i].TypeValue);
-                                }
-                            }
-                            else
-                            {
-                                App1.XMP xmp = (App1.XMP)app;
-                                Console.WriteLine("XMP");
-                            }
-                        }
-                        else if (Jpeg.Definitions.APP0(buf2))
+                        
+                        if (Jpeg.Definitions.APP0(buf2))
                         {
                             IMarker app0 = App0.Parse(buf);
                             if (app0.GetMarkerType() == MarkerType.JFIF)
@@ -105,7 +84,51 @@ namespace JpegConsoleTests
                                 Console.WriteLine("APP0");
                             }
 
-                        } 
+                        }
+                        else if (Jpeg.Definitions.APP1(buf2))
+                        {
+                            IMarker app = App1.Parse(buf);
+
+                            if (app.GetMarkerType() == MarkerType.EXIF)
+                            {
+                                App1.Exif exif = (App1.Exif)app;
+                                Console.WriteLine($"Exif {exif.TiffId} {exif.FirstIFDOffset} {exif.Length}");
+                                Ifd ifd0 = exif.Ifd0;
+                                Console.WriteLine($"IFD0 tag count {ifd0.FieldInteroperabiltyCount}");
+                                Console.WriteLine($"Next IFD {ifd0.OffsetToNextIfd}");
+                                for (int i = 0; i < ifd0.FieldInteroperabilties.Length; ++i)
+                                {
+                                    Console.WriteLine($"{ifd0.FieldInteroperabilties[i].TypeValue.TypeToString()} {ifd0.FieldInteroperabilties[i].Tag}");
+                                    Console.WriteLine(ifd0.FieldInteroperabilties[i]);
+
+                                    if (ifd0.FieldInteroperabilties[i].ExifIfd)
+                                    {
+                                        Ifd exifIfd = ifd0.FieldInteroperabilties[i].Exif;
+                                        for (int j = 0; j < exifIfd.FieldInteroperabilties.Length; ++j)
+                                        {
+                                            Console.WriteLine($"{exifIfd.FieldInteroperabilties[j].TypeValue.TypeToString()} {exifIfd.FieldInteroperabilties[j].Tag}");
+                                            Console.WriteLine(exifIfd.FieldInteroperabilties[j]);
+                                        }
+                                    }
+
+
+                                    if (ifd0.FieldInteroperabilties[i].InteroperabilityIfd)
+                                    {
+                                        Ifd interoperabilityIfd = ifd0.FieldInteroperabilties[i].Interoperability;
+                                        for (int j = 0; j < interoperabilityIfd.FieldInteroperabilties.Length; ++j)
+                                        {
+                                            Console.WriteLine($"{interoperabilityIfd.FieldInteroperabilties[j].TypeValue.TypeToString()} {interoperabilityIfd.FieldInteroperabilties[j].Tag}");
+                                            Console.WriteLine(interoperabilityIfd.FieldInteroperabilties[j]);
+                                        }
+                                    }
+                                }
+                            }
+                            else
+                            {
+                                App1.XMP xmp = (App1.XMP)app;
+                                Console.WriteLine("XMP");
+                            }
+                        }
                         else if (Jpeg.Definitions.APPn(buf2))
                         {
                             Appn appn = new Appn(buf, buf2[1] & 0x0F);
