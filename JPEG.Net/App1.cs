@@ -86,15 +86,20 @@ namespace JPEG.Net
                 return MarkerType.EXIF;
             }
         }
+
         public class XMP : IMarker
         {
             private int length;
+            private string rawXml;
 
             public XMP(byte[] buf)
             {
                 length = buf.Length;
+
+                rawXml = Encoding.UTF8.GetString(buf);
             }
 
+            public string RawXml { get => rawXml; set => rawXml = value; }
 
             public MarkerType GetMarkerType()
             {

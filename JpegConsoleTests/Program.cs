@@ -13,7 +13,8 @@ namespace JpegConsoleTests
     {
         static void Main(string[] args)
         {
-            string path = @"E:\Development\vs2017\RotationGdiTest\Debug\D500\DSC_0001.JPG";
+            string path = @"C:\Users\Greg\Pictures\file000325161223.jpg";
+            //string path = @"E:\Development\vs2017\RotationGdiTest\Debug\D500\DSC_0001.JPG";
 
             if (args.Length > 0)
             {
@@ -127,6 +128,7 @@ namespace JpegConsoleTests
                             {
                                 App1.XMP xmp = (App1.XMP)app;
                                 Console.WriteLine("XMP");
+                                Console.WriteLine (xmp.RawXml);
                             }
                         }
                         else if (Jpeg.Definitions.APPn(buf2))
