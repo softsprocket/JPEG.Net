@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Xml;
 
 namespace JPEG.Net
 {
@@ -91,12 +92,14 @@ namespace JPEG.Net
         {
             private int length;
             private string rawXml;
+            private XmlDocument document = new XmlDocument();
 
             public XMP(byte[] buf)
             {
                 length = buf.Length;
 
                 rawXml = Encoding.UTF8.GetString(buf);
+                document.LoadXml(rawXml);
             }
 
             public string RawXml { get => rawXml; set => rawXml = value; }
